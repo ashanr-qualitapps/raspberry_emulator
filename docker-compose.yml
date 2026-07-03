@@ -1,7 +1,9 @@
 version: '3.9'
 services:
   lumo-emulator:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.alpine
     privileged: true
     volumes:
       - "./scripts:/build/scripts:ro"

@@ -1,20 +1,24 @@
-FROM ubuntu:24.04
+# Use a recent Alpine Linux as the base image
+FROM alpine:3.18
 
-ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC
+# Install bash, qemu, and common utilities
+RUN apk add --no-cache \
+      bash \
+      qemu-system \
+      qemu-system-arm \
+      qemu-system-aarch64 \
+      qemu-img \
+      ca-certificates \
+      openssh-client \
+      curl \
+      util-linux
 
-RUN apt-get update \
-  && echo 'tzdata tzdata/Areas select Etc' | debconf-set-selections \
-  && echo 'tzdata tzdata/Zones/Etc select UTC' | debconf-set-selections \
-  && apt-get install -y --no-install-recommends \
-    qemu-user-static \
-    qemu-system-aarch64 \
-    kpartx \
-    rsync \
-    dosfstools \
-    util-linux \
-    uuid-runtime \
-    gzip \
-    tzdata \
-  && rm -rf /var/lib/apt/lists/*
-
+# Create build directory and set working dir
 WORKDIR /build
+
+# Keep container lightweight: we rely on docker-compose volumes for scripts and images
+# If you need to copy files into the image at build time, uncomment the next line:
+# COPY . /build
+
+# Default entrypoint (compose overrides it)
+ENTRYPOINT ["/bin/bash", "-c"]
