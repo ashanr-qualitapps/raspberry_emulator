@@ -1,24 +1,37 @@
-# Use a recent Alpine Linux as the base image
-FROM alpine:3.18
+# ---------------------------------------------------------------------------
+# Raspberry Pi OS Bookworm (Debian 12) — 64-bit QEMU Emulator
+# Base image: Ubuntu 24.04 LTS
+#   → ships QEMU 8.2.x which includes raspi4b (Pi 4B) machine support
+#   → Debian Bookworm's QEMU build omits raspi4b; Ubuntu 24.04 does not
+# ---------------------------------------------------------------------------
 
-# Install bash, qemu, and common utilities
-RUN apk add --no-cache \
+FROM ubuntu:24.04
+
+# Suppress interactive prompts during apt installs
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install QEMU 8.x (raspi4b included), image utilities, network tools,
+# and qemu-user-static + binfmt-support for aarch64 chroot provisioning
+RUN apt-get update && apt-get install -y --no-install-recommends \
       bash \
-      qemu-system \
       qemu-system-arm \
-      qemu-system-aarch64 \
-      qemu-img \
+      qemu-user-static \
+      binfmt-support \
+      qemu-utils \
       ca-certificates \
       openssh-client \
       curl \
-      util-linux
+      wget \
+      util-linux \
+      kpartx \
+      e2fsprogs \
+      xz-utils \
+      file \
+      openssl \
+      && rm -rf /var/lib/apt/lists/*
 
-# Create build directory and set working dir
+# Create build directory
 WORKDIR /build
 
-# Keep container lightweight: we rely on docker-compose volumes for scripts and images
-# If you need to copy files into the image at build time, uncomment the next line:
-# COPY . /build
-
-# Default entrypoint (compose overrides it)
+# Default entrypoint (overridden by docker-compose)
 ENTRYPOINT ["/bin/bash", "-c"]
