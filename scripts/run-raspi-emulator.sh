@@ -420,7 +420,6 @@ QEMU_CMD=(
   -serial "file:${SERIAL_LOG}"
   -monitor none
   -nographic
-  -no-reboot
 )
 
 log "QEMU command: ${QEMU_CMD[*]}"

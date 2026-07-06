@@ -11,9 +11,10 @@ services:
     volumes:
       - "./scripts:/build/scripts:ro"   # Emulator scripts (read-only)
       - "./work:/build/work"            # Persistent cache + runtime work dir
+      - "./input_image:/build/input_image:ro" # Custom built image
       - "/dev:/dev"                     # Loop device access
     ports:
-      - "6000:6000"     # Lumo HTTP   — guest port 6000 → host port 6000
+      - "8000:8000"     # Lumo HTTP   — guest port 8000 → host port 8000
       - "6443:6443"     # Lumo HTTPS  — guest port 6443 → host port 6443
       - "2222:22"       # SSH         — guest port 22   → host port 2222
     environment:
@@ -23,12 +24,12 @@ services:
       STORAGE_SIZE: "8G"
       RAM_MB: "1024"                # raspi3b requires exactly 1 GiB (enforced by QEMU)
       SSH_HOST_PORT: "2222"
-      HTTP_HOST_PORT: "6000"
+      HTTP_HOST_PORT: "8000"
       HTTPS_HOST_PORT: "6443"
       LUMO_USER: "lumouser"
       LUMO_PASS: "lumouser"
     working_dir: /build
     entrypoint: []
     command: >
-      bash -lc "set -e; mkdir -p /build/work/cache /build/work/run; bash /build/scripts/run-raspi-emulator.sh"
+      bash -lc "set -e; mkdir -p /build/work/cache /build/work/run; bash /build/scripts/run-raspi-emulator.sh /build/input_image/lumo-controller-final.img.gz"
     restart: "no"
