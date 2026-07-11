@@ -13,16 +13,54 @@ services:
       - "./work:/build/work"            # Persistent cache + runtime work dir
       - "./input_image:/build/input_image:ro" # Custom built image
       - "/dev:/dev"                     # Loop device access
+    tmpfs:
+      # tmpfs mounts for /run and /run/lock are strictly required for systemd-nspawn.
+      # If we don't map these to tmpfs, the emulated Pi's internal systemd will try to 
+      # write lock files and PID files into the same /run directory that the host Docker 
+      # container uses, causing devastating conflicts and boot crashes.
+      - /run
+      - /run/lock
     ports:
-      - "8000:8000"     # Lumo HTTP   — guest port 8000 → host port 8000
-      - "6443:6443"     # Lumo HTTPS  — guest port 6443 → host port 6443
-      - "2222:22"       # SSH         — guest port 22   → host port 2222
+      # Network Port Forwarding (Host -> Guest)
+      # Because the emulator runs in the container's network namespace, 
+      # we map the Docker host ports directly to the services running inside the Pi OS.
+      - "8000:80"       # Forwards http://localhost:8000 to the Pi's web server on port 80
+      - "6443:443"      # Forwards https://localhost:6443 to the Pi's web server on port 443
+      - "2222:22"       # Forwards ssh connection on port 2222 to the Pi's SSH daemon on port 22
     environment:
-      # Override to use a different image URL or pre-downloaded path
+      # ---------------------------------------------------------
+      # IMAGE SELECTION CONFIGURATION
+      # ---------------------------------------------------------
+      # IMAGE_MODE determines which disk image the emulator will boot:
+      # 
+      # Option 1: "custom"   
+      # -> This boots the exact image you built using the `raspberry_builder` repository.
+      # -> It looks for: input_image/lumo-controller-final.img.gz
+      # -> Use this to test your actual production deployment artifact!
+      #
+      # Option 2: "official" 
+      # -> This automatically downloads a completely clean, vanilla Pi OS Bookworm image.
+      # -> It downloads it directly from raspberrypi.com and caches it.
+      # -> Use this if you just want a clean Pi environment to test scripts or networking.
+      IMAGE_MODE: "official"
+      
+      # The official redirect URL used when IMAGE_MODE is "official".
+      # This always points to the latest stable 64-bit Lite release of Debian 12 Bookworm.
       RASPI_IMAGE_URL: "https://downloads.raspberrypi.com/raspios_lite_arm64_latest"
-      # Guest configuration
-      STORAGE_SIZE: "8G"
-      RAM_MB: "1024"                # raspi3b requires exactly 1 GiB (enforced by QEMU)
+      
+      # Target Virtual Disk Size.
+      # The emulator will attempt to expand the downloaded 3GB image to this size.
+      # CRITICAL FALLBACK: If your Windows C: drive is nearly full (e.g. < 3GB free space),
+      # the emulator detects this, safely skips the resize, and boots the default 3GB image 
+      # to prevent your system from crashing due to 'Input/output errors'.
+      STORAGE_SIZE: "4G"
+      
+      # The amount of RAM (in Megabytes) allocated to the Docker container.
+      # Note: systemd-nspawn does not strictly enforce this limit on the guest OS, 
+      # but Docker will kill the container if it exceeds this threshold.
+      RAM_MB: "1024"
+      
+      # Exposed Network Ports configuration (passed to internal scripts if needed)
       SSH_HOST_PORT: "2222"
       HTTP_HOST_PORT: "8000"
       HTTPS_HOST_PORT: "6443"
@@ -31,5 +69,13 @@ services:
     working_dir: /build
     entrypoint: []
     command: >
-      bash -lc "set -e; mkdir -p /build/work/cache /build/work/run; bash /build/scripts/run-raspi-emulator.sh /build/input_image/lumo-controller-final.img.gz"
+      bash -lc "
+      set -e; mkdir -p /build/work/cache /build/work/run;
+      if [[ \"$$IMAGE_MODE\" == \"official\" ]]; then
+        echo '--- OPTION 2: Booting CLEAN OFFICIAL Raspberry Pi OS Image ---';
+        bash /build/scripts/run-raspi-emulator.sh;
+      else
+        echo '--- OPTION 1: Booting CUSTOM Lumo Controller Image ---';
+        bash /build/scripts/run-raspi-emulator.sh /build/input_image/lumo-controller-final.img.gz;
+      fi"
     restart: "no"

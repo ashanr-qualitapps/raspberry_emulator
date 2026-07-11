@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       qemu-user-static \
       binfmt-support \
       qemu-utils \
+      systemd-container \
+      dbus \
       ca-certificates \
       openssh-client \
       curl \
